@@ -1,14 +1,30 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-    <title>Louisiana Scanner Remoto</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Profissional - Louisiana</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body { background: #1D1F26; color: white; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        #reader { width: 90%; max-width: 400px; border-radius: 20px; overflow: hidden; border: 2px solid #22c55e !important; }
+        .info { margin-top: 20px; text-align: center; padding: 0 20px; }
+        button { background: #22c55e; color: white; border: none; padding: 12px 25px; border-radius: 10px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        #status { font-size: 12px; color: #94a3b8; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h2 style="color: #22c55e; letter-spacing: -1px;">LOUISIANA SCAN</h2>
+    <div id="reader"></div>
+    <div class="info">
+        <p id="msg">Aponte para o código de barras</p>
+        <div id="status">Aguardando conexão...</div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // USE A MESMA CONFIGURAÇÃO DO SEU APP PRINCIPAL
         const firebaseConfig = {
             apiKey: "AIzaSyBuob65d4nwic1hXTGSsLtc38dEoD1H0zU",
             authDomain: "pdv26-aa76b.firebaseapp.com",
@@ -21,29 +37,41 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        function onScanSuccess(decodedText) {
-            // Envia o código para o Firebase
-            addDoc(collection(db, "bipe_remoto"), {
-                codigo: decodedText,
-                timestamp: new Date().getTime()
-            });
-            
-            // Feedback visual rápido
-            document.body.style.backgroundColor = "#22c55e";
-            setTimeout(() => document.body.style.backgroundColor = "#1D1F26", 200);
+        const html5QrCode = new Html5Qrcode("reader");
+        const config = { 
+            fps: 20, 
+            qrbox: { width: 280, height: 150 }, // Área maior para códigos de barras longos
+            aspectRatio: 1.0 
+        };
+
+        // Inicia a câmera com preferência para a traseira e alta resolução
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            config,
+            (decodedText) => {
+                enviarCodigo(decodedText);
+                vibrar();
+            }
+        ).then(() => {
+            document.getElementById('status').innerText = "Câmera Ativa - Alta Precisão";
+        });
+
+        async function enviarCodigo(codigo) {
+            try {
+                await addDoc(collection(db, "bipe_remoto"), {
+                    codigo: codigo,
+                    timestamp: new Date().getTime()
+                });
+                document.body.style.backgroundColor = "#22c55e";
+                setTimeout(() => document.body.style.backgroundColor = "#1D1F26", 150);
+            } catch (e) {
+                alert("Erro ao enviar: " + e);
+            }
         }
 
-        let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-        html5QrcodeScanner.render(onScanSuccess);
+        function vibrar() {
+            if (navigator.vibrate) navigator.vibrate(100);
+        }
     </script>
-    <style>
-        body { background: #1D1F26; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
-        #reader { width: 300px; margin-top: 20px; border-radius: 20px; overflow: hidden; }
-    </style>
-</head>
-<body>
-    <h2 style="margin-top: 30px;">LOUISIANA SCANNER</h2>
-    <div id="reader"></div>
-    <p>Aponte para o código de barras</p>
 </body>
 </html>
