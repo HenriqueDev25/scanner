@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Louisiana Scanner Remoto</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // USE A MESMA CONFIGURAÇÃO DO SEU APP PRINCIPAL
+        const firebaseConfig = {
+            apiKey: "AIzaSyBuob65d4nwic1hXTGSsLtc38dEoD1H0zU",
+            authDomain: "pdv26-aa76b.firebaseapp.com",
+            projectId: "pdv26-aa76b",
+            storageBucket: "pdv26-aa76b.firebasestorage.app",
+            messagingSenderId: "885941177258",
+            appId: "1:885941177258:web:98f2690e07ec0a087cf9d3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        function onScanSuccess(decodedText) {
+            // Envia o código para o Firebase
+            addDoc(collection(db, "bipe_remoto"), {
+                codigo: decodedText,
+                timestamp: new Date().getTime()
+            });
+            
+            // Feedback visual rápido
+            document.body.style.backgroundColor = "#22c55e";
+            setTimeout(() => document.body.style.backgroundColor = "#1D1F26", 200);
+        }
+
+        let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+        html5QrcodeScanner.render(onScanSuccess);
+    </script>
+    <style>
+        body { background: #1D1F26; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        #reader { width: 300px; margin-top: 20px; border-radius: 20px; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <h2 style="margin-top: 30px;">LOUISIANA SCANNER</h2>
+    <div id="reader"></div>
+    <p>Aponte para o código de barras</p>
+</body>
+</html>
