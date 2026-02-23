@@ -3,21 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Louisiana Scanner Ultra</title>
+    <title>Louisiana Scanner Ultra - Direto</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         body { background: #1D1F26; color: white; font-family: sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        
+        /* Layout do Scanner */
+        #appScanner { display: flex; flex-direction: column; align-items: center; width: 100%; }
         #reader { width: 85%; max-width: 400px; border-radius: 15px; overflow: hidden; border: 3px solid #22c55e !important; box-shadow: 0 0 20px rgba(34, 197, 94, 0.2); }
-        .overlay { position: absolute; border: 2px solid red; width: 250px; height: 100px; pointer-events: none; }
         #status { margin-top: 15px; font-weight: bold; color: #22c55e; text-align: center; }
+        
         .flash-bip { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; transition: opacity 0.1s; z-index: 999; }
+        h2 { letter-spacing: -1px; margin-bottom: 15px; text-transform: uppercase; }
     </style>
 </head>
 <body>
     <div class="flash-bip" id="flash"></div>
-    <h2 style="letter-spacing: -1px; margin-bottom: 15px;">LOUISIANA SCAN</h2>
-    <div id="reader"></div>
-    <div id="status">INICIANDO CÂMERA...</div>
+
+    <div id="appScanner">
+        <h2>LOUISIANA SCAN ULTRA</h2>
+        <div id="reader"></div>
+        <div id="status">INICIANDO CÂMERA...</div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -34,25 +41,22 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
-        // ==============================================================
-        // COLOQUE O SEU UID DO FIREBASE DENTRO DAS ASPAS ABAIXO
-        // Exemplo: const ID_DA_LOJA = "aB3dE5fG...";
-        // ==============================================================
-        const ID_DA_LOJA = "COLE_SEU_UID_AQUI"; 
-
+        
+        let html5QrCode = null;
         let podeEscanear = true;
 
+        // --- LÓGICA DO SCANNER ---
         async function onScanSuccess(decodedText) {
             if (!podeEscanear) return;
             
             podeEscanear = false;
-            document.getElementById('status').innerText = "ENVIANDO PARA O CAIXA...";
+            document.getElementById('status').innerText = "ENVIANDO...";
             document.getElementById('flash').style.opacity = "1";
             
             try {
-                // Envia direto para a pasta da sua loja
-                await addDoc(collection(db, `usuarios/${ID_DA_LOJA}/bipe_remoto`), {
+                // Enviando para uma coleção fixa 'bipe_remoto' 
+                // Você pode mudar 'geral' para o ID da sua loja se preferir
+                await addDoc(collection(db, `usuarios/geral/bipe_remoto`), {
                     codigo: decodedText,
                     timestamp: new Date().getTime()
                 });
@@ -61,28 +65,35 @@
                 
                 setTimeout(() => {
                     document.getElementById('flash').style.opacity = "0";
-                    document.getElementById('status').innerText = "PRONTO PARA PRÓXIMO";
+                    document.getElementById('status').innerText = "SISTEMA PRONTO";
                     podeEscanear = true;
-                }, 2000); 
+                }, 1500); 
 
             } catch (e) {
-                alert("Erro ao enviar: O banco de dados bloqueou (verifique as regras do Firebase) ou a internet falhou.");
-                console.error(e);
+                console.error("Erro ao enviar:", e);
+                document.getElementById('status').innerText = "ERRO AO ENVIAR!";
                 podeEscanear = true;
             }
         }
 
-        const html5QrCode = new Html5Qrcode("reader");
-        html5QrCode.start(
-            { facingMode: "environment" }, 
-            { fps: 20, qrbox: { width: 250, height: 120 } },
-            onScanSuccess
-        ).then(() => {
-            document.getElementById('status').innerText = "SISTEMA PRONTO";
-        }).catch(err => {
-            document.getElementById('status').innerText = "Permita o uso da câmera!";
-            console.error(err);
-        });
+        function iniciarCamera() {
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                { fps: 20, qrbox: { width: 250, height: 120 } },
+                onScanSuccess
+            ).then(() => {
+                document.getElementById('status').innerText = "SISTEMA PRONTO";
+            }).catch(err => {
+                document.getElementById('status').innerText = "ERRO: PERMITA A CÂMERA!";
+                console.error(err);
+            });
+        }
+
+        // Inicia automaticamente ao carregar a página
+        window.addEventListener('load', iniciarCamera);
     </script>
 </body>
 </html>
