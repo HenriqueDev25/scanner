@@ -7,21 +7,45 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         body { background: #1D1F26; color: white; font-family: sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        #reader { width: 85%; border-radius: 15px; overflow: hidden; border: 3px solid #22c55e !important; box-shadow: 0 0 20px rgba(34, 197, 94, 0.2); }
+        
+        /* Estilos da Tela de Login */
+        #loginScreen { display: flex; flex-direction: column; align-items: center; width: 85%; max-width: 320px; }
+        .input-login { width: 100%; padding: 15px; margin-bottom: 15px; border-radius: 10px; border: none; outline: none; box-sizing: border-box; font-size: 16px; background: rgba(255,255,255,0.1); color: white; }
+        .btn-login { width: 100%; padding: 15px; background: #22c55e; color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; margin-bottom: 10px; text-transform: uppercase; }
+        .btn-sair { background: rgba(239, 68, 68, 0.2); margin-top: 20px; padding: 10px 20px; border-radius: 8px; border: 1px solid #ef4444; color: #ef4444; font-weight: bold; cursor: pointer; }
+        
+        /* Estilos da Tela do Scanner */
+        #appScanner { display: none; flex-direction: column; align-items: center; width: 100%; }
+        #reader { width: 85%; max-width: 400px; border-radius: 15px; overflow: hidden; border: 3px solid #22c55e !important; box-shadow: 0 0 20px rgba(34, 197, 94, 0.2); }
         .overlay { position: absolute; border: 2px solid red; width: 250px; height: 100px; pointer-events: none; }
-        #status { margin-top: 15px; font-weight: bold; color: #22c55e; }
-        .flash-bip { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; transition: opacity 0.1s; }
+        #status { margin-top: 15px; font-weight: bold; color: #22c55e; text-align: center; }
+        .flash-bip { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; transition: opacity 0.1s; z-index: 999; }
     </style>
 </head>
 <body>
     <div class="flash-bip" id="flash"></div>
-    <h2 style="letter-spacing: -1px; margin-bottom: 5px;">LOUISIANA SCAN</h2>
-    <div id="reader"></div>
-    <div id="status">SISTEMA PRONTO</div>
+
+    <div id="loginScreen">
+        <h1 style="color: #22c55e; margin-bottom: 5px; letter-spacing: -1px;">SCANNER PDV</h1>
+        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 25px;">Acesse com o e-mail da loja</p>
+        <input type="email" id="email" class="input-login" placeholder="E-mail">
+        <input type="password" id="senha" class="input-login" placeholder="Senha">
+        <button onclick="fazerLogin()" class="btn-login">Conectar ao Caixa</button>
+        <p id="erroLogin" style="color: #ef4444; display: none; font-size: 14px; font-weight: bold; margin-top: 10px;">Erro ao conectar. Verifique seus dados.</p>
+    </div>
+
+    <div id="appScanner">
+        <h2 style="letter-spacing: -1px; margin-bottom: 15px;">LOUISIANA SCAN ULTRA</h2>
+        <div id="reader"></div>
+        <div id="status">INICIANDO CÂMERA...</div>
+        <button onclick="sair()" class="btn-sair">Desconectar</button>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        // Importando o Auth para o login funcionar
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBuob65d4nwic1hXTGSsLtc38dEoD1H0zU",
@@ -34,18 +58,43 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
+        const auth = getAuth(app);
+        
+        let currentUser = null;
+        let html5QrCode = null;
         let podeEscanear = true;
 
+        // --- SISTEMA DE LOGIN ---
+        window.fazerLogin = async () => {
+            const e = document.getElementById('email').value;
+            const s = document.getElementById('senha').value;
+            try {
+                await signInWithEmailAndPassword(auth, e, s);
+                document.getElementById('erroLogin').style.display = 'none';
+            } catch (error) {
+                document.getElementById('erroLogin').style.display = 'block';
+            }
+        };
+
+        window.sair = async () => {
+            if (html5QrCode) {
+                try { await html5QrCode.stop(); } catch(e) { console.log("Câmera já parada"); }
+            }
+            await signOut(auth);
+        };
+
+        // --- LÓGICA DO SCANNER ---
         async function onScanSuccess(decodedText) {
-            if (!podeEscanear) return;
+            // Verifica se pode escanear e se tem alguém logado
+            if (!podeEscanear || !currentUser) return;
             
             podeEscanear = false; // Trava o scanner
-            document.getElementById('status').innerText = "ENVIANDO...";
+            document.getElementById('status').innerText = "ENVIANDO PARA O CAIXA...";
             document.getElementById('flash').style.opacity = "1";
             
             try {
-                await addDoc(collection(db, "bipe_remoto"), {
+                // AQUI ESTÁ A MÁGICA: Envia para a pasta do usuário logado!
+                await addDoc(collection(db, `usuarios/${currentUser.uid}/bipe_remoto`), {
                     codigo: decodedText,
                     timestamp: new Date().getTime()
                 });
@@ -54,22 +103,47 @@
                 
                 setTimeout(() => {
                     document.getElementById('flash').style.opacity = "0";
-                    document.getElementById('status').innerText = "PRONTO PARA PRÓXIMO";
+                    document.getElementById('status').innerText = "SISTEMA PRONTO";
                     podeEscanear = true; // Destrava após 2 segundos
                 }, 2000); 
 
             } catch (e) {
-                alert("Erro: " + e);
+                alert("Erro ao enviar: " + e);
                 podeEscanear = true;
             }
         }
 
-        const html5QrCode = new Html5Qrcode("reader");
-        html5QrCode.start(
-            { facingMode: "environment" }, 
-            { fps: 20, qrbox: { width: 250, height: 120 } },
-            onScanSuccess
-        );
+        function iniciarCamera() {
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                { fps: 20, qrbox: { width: 250, height: 120 } },
+                onScanSuccess
+            ).then(() => {
+                document.getElementById('status').innerText = "SISTEMA PRONTO";
+            }).catch(err => {
+                document.getElementById('status').innerText = "Permita o uso da câmera!";
+                console.error(err);
+            });
+        }
+
+        // --- VERIFICA SE ESTÁ LOGADO ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Se conectou, esconde o login, mostra o scanner e liga a câmera
+                currentUser = user;
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appScanner').style.display = 'flex';
+                iniciarCamera(); 
+            } else {
+                // Se deslogou, mostra o login e desliga a câmera
+                currentUser = null;
+                document.getElementById('loginScreen').style.display = 'flex';
+                document.getElementById('appScanner').style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html>
