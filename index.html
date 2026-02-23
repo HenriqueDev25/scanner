@@ -2,529 +2,87 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Louisiana PDV - Sistema Profissional</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-    <script type="text/javascript">(function(){ emailjs.init("D2oYhqF92aOaLtnWU"); })();</script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Louisiana Scanner Ultra</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        :root {
-            --primary: #10b981; /* Verde Emerald */
-            --bg-dark: #0f172a; /* Slate 900 */
-            --bg-card: #1e293b; /* Slate 800 */
-        }
-
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            background-color: #f8fafc; 
-            height: 100vh; 
-            overflow: hidden; 
-            color: #1e293b;
-        }
-
-        /* Tabs Refinadas */
-        .tab-content { display: none; height: 100%; }
-        .tab-content.active { display: block; animation: fadeIn 0.3s ease-out; }
-        .tab-btn { position: relative; color: #94a3b8; transition: all 0.3s; }
-        .tab-btn.active { color: white; background: rgba(255,255,255,0.1); border-radius: 12px; }
-        .tab-btn.active::after { 
-            content: ''; position: absolute; bottom: -4px; left: 25%; width: 50%; height: 3px; 
-            background: var(--primary); border-radius: 10px; box-shadow: 0 0 10px var(--primary);
-        }
-
-        /* Cards de Produto */
-        .img-produto { width: 100%; height: 140px; object-fit: cover; border-radius: 12px; background: #f1f5f9; transition: transform 0.3s; }
-        .product-card:hover .img-produto { transform: scale(1.05); }
-        .product-card { transition: all 0.2s; border: 1px solid #e2e8f0; }
-        .product-card:hover { border-color: var(--primary); box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.1); }
-
-        /* Carrinho Lateral */
-        .carrinho-container { background: var(--bg-dark); box-shadow: -10px 0 30px rgba(0,0,0,0.1); }
-        .carrinho-item { 
-            background: rgba(255,255,255,0.03); 
-            border-left: 3px solid var(--primary); 
-            backdrop-filter: blur(5px);
-        }
-
-        /* Scrollbars Custom */
-        .custom-scroll::-webkit-scrollbar { width: 5px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .scroll-area { overflow-y: auto; height: 100%; padding-bottom: 150px; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Login Glassmorphism */
-        #loginScreen { 
-            background: radial-gradient(circle at top left, #1e293b, #0f172a); 
-        }
-        
-        .hidden-app { display: none !important; }
+        body { background: #1D1F26; color: white; font-family: sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        #reader { width: 85%; max-width: 400px; border-radius: 15px; overflow: hidden; border: 3px solid #22c55e !important; box-shadow: 0 0 20px rgba(34, 197, 94, 0.2); }
+        .overlay { position: absolute; border: 2px solid red; width: 250px; height: 100px; pointer-events: none; }
+        #status { margin-top: 15px; font-weight: bold; color: #22c55e; text-align: center; }
+        .flash-bip { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; transition: opacity 0.1s; z-index: 999; }
     </style>
 </head>
-<body class="flex flex-col">
+<body>
+    <div class="flash-bip" id="flash"></div>
+    <h2 style="letter-spacing: -1px; margin-bottom: 15px;">LOUISIANA SCAN</h2>
+    <div id="reader"></div>
+    <div id="status">INICIANDO CÂMERA...</div>
 
-<div id="loginScreen" class="fixed inset-0 z-[100] flex flex-col items-center justify-center text-white p-6">
-    <div class="bg-white/5 backdrop-blur-xl p-8 md:p-12 rounded-[2rem] border border-white/10 shadow-2xl text-center w-full max-w-md">
-        <div class="mb-8">
-            <div class="inline-block p-4 bg-emerald-500/10 rounded-2xl mb-4">
-                <svg class="w-12 h-12 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-            </div>
-            <h1 class="text-4xl font-extrabold tracking-tight">LOUISIANA <span class="text-emerald-500">PDV</span></h1>
-            <p class="text-slate-400 text-sm mt-2">Acesse sua estação de trabalho</p>
-        </div>
-        <div class="space-y-4">
-            <input type="email" id="loginEmail" placeholder="E-mail" class="w-full bg-white/5 border border-white/10 p-4 rounded-2xl outline-none focus:ring-2 ring-emerald-500/50 transition-all">
-            <input type="password" id="loginPassword" placeholder="Senha" class="w-full bg-white/5 border border-white/10 p-4 rounded-2xl outline-none focus:ring-2 ring-emerald-500/50 transition-all">
-            <button onclick="fazerLoginEmail()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-2xl transition shadow-lg shadow-emerald-900/20 active:scale-95">ENTRAR NO SISTEMA</button>
-        </div>
-        <p id="loginError" class="text-red-400 mt-4 text-xs font-bold hidden">Credenciais Inválidas</p>
-    </div>
-</div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-<div id="appInterface" class="hidden-app flex flex-col h-full">
-    <header class="bg-[#0f172a] text-white px-8 py-4 flex justify-between items-center shrink-0">
-        <div class="flex items-center gap-6">
-            <h1 class="text-xl font-black tracking-tighter">LOUISIANA <span class="text-emerald-500">PDV</span></h1>
-            <div class="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
-                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
-                <span class="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">Terminal Ativo</span>
-            </div>
-        </div>
-        <nav class="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/5">
-            <button onclick="switchTab('venda')" class="tab-btn active px-6 py-2.5 text-xs font-bold uppercase tracking-wider">Vendas (F1)</button>
-            <button onclick="switchTab('estoque')" class="tab-btn px-6 py-2.5 text-xs font-bold uppercase tracking-wider">Estoque (F2)</button>
-            <button onclick="switchTab('historico')" class="tab-btn px-6 py-2.5 text-xs font-bold uppercase tracking-wider">Relatórios (F3)</button>
-        </nav>
-        <button onclick="logout()" class="group flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-400 hover:text-red-400 transition">
-            <span>Sair</span>
-            <svg class="w-4 h-4 group-hover:translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-        </button>
-    </header>
-
-    <main class="flex-1 relative overflow-hidden">
-        <section id="venda" class="tab-content active">
-            <div class="flex h-full p-6 gap-6">
-                <div class="flex-[3] flex flex-col gap-6 overflow-hidden">
-                    <div class="relative shrink-0 group">
-                        <input type="text" id="inputBusca" placeholder="Pesquisar produto ou bipe o código... (F8)" 
-                            class="w-full bg-white border-2 border-slate-200 p-5 pl-14 rounded-[1.5rem] shadow-sm outline-none text-lg focus:border-emerald-500 focus:ring-4 ring-emerald-500/5 transition-all">
-                        <span class="absolute left-6 top-6 text-slate-400 group-focus-within:text-emerald-500 transition">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                        </span>
-                    </div>
-                    <div id="gridProdutos" class="grid-pdv scroll-area custom-scroll pr-2"></div>
-                </div>
-
-                <div class="flex-1 carrinho-container rounded-[2rem] flex flex-col text-white min-w-[380px] overflow-hidden">
-                    <div class="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
-                        <div class="flex flex-col">
-                            <span class="font-black uppercase tracking-widest text-[10px] text-emerald-500">Checkout</span>
-                            <span class="text-slate-400 text-xs" id="qtdItens">0 Itens no carrinho</span>
-                        </div>
-                        <button onclick="carrinho = []; atualizarCarrinho();" class="text-slate-500 hover:text-red-400 text-[10px] font-bold uppercase transition">Limpar</button>
-                    </div>
-                    
-                    <div id="carrinhoItens" class="flex-1 scroll-area p-4 space-y-3 custom-scroll"></div>
-
-                    <div class="p-8 bg-emerald-500/5 border-t border-white/5 backdrop-blur-md">
-                        <div class="flex justify-between items-center mb-6">
-                            <span class="text-slate-400 font-medium">Total do Pedido</span>
-                            <span id="totalVenda" class="text-4xl font-black text-white tracking-tighter">R$ 0,00</span>
-                        </div>
-                        <div class="space-y-4">
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="col-span-2">
-                                    <label class="text-[10px] uppercase font-bold text-slate-500 ml-1 mb-1 block">Forma de Pagamento</label>
-                                    <select id="metodoPgto" class="w-full bg-white/5 p-4 rounded-2xl border border-white/10 text-white outline-none focus:border-emerald-500 transition" onchange="toggleTroco()">
-                                        <option value="dinheiro" class="bg-slate-900">Dinheiro</option>
-                                        <option value="pix" class="bg-slate-900">PIX</option>
-                                        <option value="cartao" class="bg-slate-900">Cartão</option>
-                                    </select>
-                                </div>
-                                <div id="divTroco" class="col-span-2 space-y-3">
-                                    <input type="number" id="valorRecebido" placeholder="Valor recebido" class="w-full bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-2xl text-emerald-400 outline-none placeholder:text-emerald-900" oninput="calcTroco()">
-                                    <div class="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
-                                        <span class="text-xs text-slate-400 font-bold uppercase">Troco a devolver:</span>
-                                        <span id="labelTroco" class="font-black text-emerald-400">R$ 0,00</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <button onclick="finalizarVenda()" class="w-full bg-emerald-600 hover:bg-emerald-500 p-5 rounded-2xl font-black text-lg transition-all uppercase tracking-widest shadow-xl shadow-emerald-900/20 active:scale-[0.98]">Finalizar Venda (F9)</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="estoque" class="tab-content">
-            <div class="p-8 flex flex-col h-full gap-8">
-                <div class="bg-white p-8 rounded-[2rem] border border-slate-200 shrink-0 shadow-sm">
-                    <h2 class="text-lg font-bold mb-6 flex items-center gap-2">
-                        <span class="w-2 h-6 bg-emerald-500 rounded-full"></span>
-                        Gestão de Inventário
-                    </h2>
-                    <form id="formProd" class="grid grid-cols-4 gap-4">
-                        <input type="hidden" id="editId">
-                        <div class="col-span-2"><input type="text" id="nome" placeholder="Nome do Produto" class="w-full p-4 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none transition" required></div>
-                        <input type="text" id="cod" placeholder="Código EAN" class="p-4 border border-slate-200 rounded-2xl bg-slate-50 font-mono font-bold">
-                        <input type="text" id="cat" placeholder="Categoria" class="p-4 border border-slate-200 rounded-2xl">
-                        <input type="number" id="custo" placeholder="Custo R$" step="0.01" class="p-4 border border-slate-200 rounded-2xl" required>
-                        <input type="number" id="preco" placeholder="Venda R$" step="0.01" class="p-4 border border-slate-200 rounded-2xl" required>
-                        <input type="number" id="qtd" placeholder="Qtd Inicial" class="p-4 border border-slate-200 rounded-2xl" required>
-                        <input type="text" id="imgUrl" placeholder="Link da Imagem (URL)" class="p-4 border border-slate-200 rounded-2xl">
-                        <div class="col-span-4 flex gap-3 mt-2">
-                            <button type="submit" id="btnSalvar" class="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black uppercase hover:bg-black transition shadow-lg">Salvar Produto</button>
-                            <button type="button" onclick="cancelarEdicao()" id="btnCancelarEdit" class="hidden bg-red-50 text-red-600 px-8 rounded-2xl font-bold uppercase hover:bg-red-100 transition">Cancelar</button>
-                        </div>
-                    </form>
-                </div>
-                <div id="listaEstoqueGrid" class="grid-pdv scroll-area custom-scroll"></div>
-            </div>
-        </section>
-
-        <section id="historico" class="tab-content">
-            <div class="p-8 flex flex-col h-full gap-6">
-                <div class="flex justify-between items-center">
-                    <div id="estatisticas" class="flex gap-4"></div>
-                    <div class="flex gap-3">
-                        <button onclick="exportarExcel()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold text-xs uppercase shadow-lg transition">Exportar Excel</button>
-                        <button onclick="limparTodoHistorico()" class="bg-red-100 hover:bg-red-600 hover:text-white text-red-600 px-6 py-3 rounded-2xl font-bold text-xs uppercase transition">Limpar Tudo</button>
-                    </div>
-                </div>
-                
-                <div class="flex-1 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                    <div class="overflow-y-auto custom-scroll flex-1">
-                        <table class="w-full">
-                            <thead class="sticky top-0 bg-slate-50 z-10">
-                                <tr>
-                                    <th class="p-5 text-left text-[10px] uppercase font-black text-slate-400 border-b">Data / Hora</th>
-                                    <th class="p-5 text-left text-[10px] uppercase font-black text-slate-400 border-b">Itens Vendidos</th>
-                                    <th class="p-5 text-left text-[10px] uppercase font-black text-slate-400 border-b">Pagamento</th>
-                                    <th class="p-5 text-left text-[10px] uppercase font-black text-slate-400 border-b">Total</th>
-                                    <th class="p-5 text-left text-[10px] uppercase font-black text-slate-400 border-b">Lucro</th>
-                                    <th class="p-5 text-right text-[10px] uppercase font-black text-slate-400 border-b">Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="corpoTabelaVendas" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-</div>
-
-<div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 opacity-0 scale-90 transition-all duration-500 bg-emerald-600 text-white px-10 py-5 rounded-[2rem] z-[200] font-black shadow-2xl flex items-center gap-3">
-    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-    <span id="toastMsg">Sucesso!</span>
-</div>
-
-<script type="module">
-    // ... O seu código JS original aqui (importações, firebaseConfig, e funções de lógica)
-    // DICA: Apenas certifique-se de que as IDs dos elementos HTML batem com as do seu script.
-    // Usei os mesmos nomes (inputBusca, gridProdutos, etc) para manter a compatibilidade.
-</script>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyBuob65d4nwic1hXTGSsLtc38dEoD1H0zU",
-        authDomain: "pdv26-aa76b.firebaseapp.com",
-        projectId: "pdv26-aa76b",
-        storageBucket: "pdv26-aa76b.firebasestorage.app",
-        messagingSenderId: "885941177258",
-        appId: "1:885941177258:web:98f2690e07ec0a087cf9d3"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-    const EMAIL_AUTORIZADO = "louisianapdv@gmail.com";
-
-    let produtos = [], vendas = [], carrinho = [];
-
-    // SCANNER
-    function iniciarScannerRemoto() {
-        onSnapshot(collection(db, "bipe_remoto"), (snapshot) => {
-            snapshot.docChanges().forEach(async (change) => {
-                if (change.type === "added") {
-                    const codigoAlvo = String(change.doc.data().codigo).trim();
-                    const inputBusca = document.getElementById('inputBusca');
-                    const abaEstoqueAtiva = document.getElementById('estoque').classList.contains('active');
-
-                    if (abaEstoqueAtiva) {
-                        document.getElementById('cod').value = codigoAlvo;
-                        notificar("Código capturado!");
-                    } else {
-                        inputBusca.value = codigoAlvo;
-                        renderizarProdutos();
-                        const prod = produtos.find(p => String(p.cod).trim() === codigoAlvo);
-                        if (prod) {
-                            window.addCarrinho(prod.firebaseId);
-                            setTimeout(() => { inputBusca.value = ""; renderizarProdutos(); }, 1200);
-                        }
-                    }
-                    try { await deleteDoc(doc(db, "bipe_remoto", change.doc.id)); } catch(e) {}
-                }
-            });
-        });
-    }
-
-    // LOGIN
-    window.fazerLoginEmail = async () => {
-        const e = document.getElementById('loginEmail').value;
-        const s = document.getElementById('loginPassword').value;
-        try { await signInWithEmailAndPassword(auth, e, s); } catch (err) { document.getElementById('loginError').classList.remove('hidden'); }
-    };
-
-    onAuthStateChanged(auth, (user) => {
-        if (user && user.email.toLowerCase() === EMAIL_AUTORIZADO) {
-            document.getElementById('loginScreen').classList.add('hidden-app');
-            document.getElementById('appInterface').classList.remove('hidden-app');
-            inicializarApp();
-            iniciarScannerRemoto();
-            focarBusca();
-        } else {
-            document.getElementById('loginScreen').classList.remove('hidden-app');
-        }
-    });
-
-    function inicializarApp() {
-        onSnapshot(collection(db, "produtos"), (snap) => {
-            produtos = snap.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
-            renderizarProdutos();
-            renderizarEstoque();
-        });
-        onSnapshot(query(collection(db, "vendas"), orderBy("data", "desc")), (snap) => {
-            vendas = snap.docs.map(d => ({ firebaseId: d.id, ...d.data() }));
-            renderizarHistorico();
-        });
-    }
-
-    window.switchTab = (id) => {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        if(id === 'venda') focarBusca();
-    };
-
-    window.renderizarProdutos = () => {
-        const grid = document.getElementById('gridProdutos');
-        const busca = document.getElementById('inputBusca').value.toLowerCase();
-        const filtrados = produtos.filter(p => (p.nome || "").toLowerCase().includes(busca) || String(p.cod || "").includes(busca));
-        
-        grid.innerHTML = filtrados.map(p => `
-            <div class="product-card bg-white rounded-3xl p-4 cursor-pointer flex flex-col h-full" onclick="addCarrinho('${p.firebaseId}')">
-                <div class="overflow-hidden rounded-2xl mb-4">
-                    <img src="${p.img}" class="img-produto" onerror="this.src='https://via.placeholder.com/200?text=Louisiana'">
-                </div>
-                <h3 class="font-bold text-xs uppercase text-slate-600 mb-1">${p.nome}</h3>
-                <div class="mt-auto pt-4 flex justify-between items-end">
-                    <span class="font-black text-xl text-slate-900 leading-none">R$ ${p.preco.toFixed(2)}</span>
-                    <span class="text-[9px] ${p.estoque < 5 ? 'bg-red-50 text-red-500' : 'bg-slate-100 text-slate-500'} px-2 py-1 rounded-lg font-black uppercase">${p.estoque} UN</span>
-                </div>
-            </div>`).join('');
-    };
-
-    window.renderizarEstoque = () => {
-        const grid = document.getElementById('listaEstoqueGrid');
-        grid.innerHTML = produtos.map(p => `
-            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col">
-                <img src="${p.img}" class="img-produto mb-4" onerror="this.src='https://via.placeholder.com/200'">
-                <h3 class="font-bold text-xs uppercase truncate mb-1">${p.nome}</h3>
-                <p class="text-[10px] text-slate-400 mb-4 font-mono font-bold">${p.cod}</p>
-                <div class="flex gap-2 mt-auto">
-                    <button onclick="editarProduto('${p.firebaseId}')" class="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-bold text-[10px] uppercase hover:bg-slate-200 transition">Editar</button>
-                    <button onclick="removerProd('${p.firebaseId}')" class="bg-red-50 text-red-500 p-3 rounded-xl hover:bg-red-500 hover:text-white transition">
-                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
-                </div>
-            </div>`).join('');
-    };
-
-    window.renderizarHistorico = () => {
-        const corpoTabela = document.getElementById('corpoTabelaVendas');
-        const stats = document.getElementById('estatisticas');
-        let t = 0, l = 0;
-        vendas.forEach(v => { t += v.total; l += v.lucro; });
-
-        stats.innerHTML = `
-            <div class="bg-white p-6 rounded-[1.5rem] border border-slate-200 shadow-sm min-w-[180px]">
-                <p class="text-[10px] text-slate-400 font-black uppercase mb-1 tracking-widest">Faturamento</p>
-                <p class="text-2xl font-black">R$ ${t.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-            </div>
-            <div class="bg-emerald-600 text-white p-6 rounded-[1.5rem] shadow-xl shadow-emerald-900/10 min-w-[180px]">
-                <p class="text-[10px] text-emerald-100 font-black uppercase mb-1 tracking-widest">Lucro Real</p>
-                <p class="text-2xl font-black">R$ ${l.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-            </div>
-        `;
-
-        corpoTabela.innerHTML = vendas.map(v => `
-            <tr class="hover:bg-slate-50 transition">
-                <td class="p-5 font-bold text-slate-400 text-xs">${new Date(v.data).toLocaleString()}</td>
-                <td class="p-5 max-w-xs truncate text-xs font-medium" title="${v.itens}">${v.itens}</td>
-                <td class="p-5"><span class="px-3 py-1 bg-slate-100 rounded-full text-[9px] font-black uppercase text-slate-500">${v.pagamento}</span></td>
-                <td class="p-5 font-black text-slate-800">R$ ${v.total.toFixed(2)}</td>
-                <td class="p-5 text-emerald-600 font-bold">R$ ${v.lucro.toFixed(2)}</td>
-                <td class="p-5 text-right"><button onclick="removerVenda('${v.firebaseId}')" class="text-red-300 hover:text-red-600 transition font-bold text-xs uppercase">Remover</button></td>
-            </tr>
-        `).join('');
-    };
-
-    window.removerVenda = async (id) => { if(confirm("Remover do histórico?")) await deleteDoc(doc(db, "vendas", id)); };
-
-    window.limparTodoHistorico = async () => {
-        if(confirm("Apagar TODO o histórico?")) {
-            const querySnapshot = await getDocs(collection(db, "vendas"));
-            const batch = writeBatch(db);
-            querySnapshot.forEach((d) => batch.delete(d.ref));
-            await batch.commit();
-            notificar("Histórico limpo!");
-        }
-    };
-
-    window.addCarrinho = (fbId) => {
-        const prod = produtos.find(p => p.firebaseId === fbId);
-        if(!prod || prod.estoque <= 0) { notificar("Sem estoque!"); return; }
-        const item = carrinho.find(i => i.firebaseId === fbId);
-        item ? item.qtd++ : carrinho.push({...prod, qtd: 1});
-        atualizarCarrinho();
-        focarBusca();
-    };
-
-    window.atualizarCarrinho = () => {
-        const lista = document.getElementById('carrinhoItens');
-        let total = 0;
-        lista.innerHTML = carrinho.map((item, idx) => {
-            total += item.preco * item.qtd;
-            return `<div class="carrinho-item p-4 rounded-2xl flex justify-between text-white text-xs items-center">
-                <div class="truncate pr-2">
-                    <p class="font-bold truncate text-sm mb-1">${item.nome}</p>
-                    <p class="text-emerald-400 font-black">${item.qtd}x <span class="text-slate-500 ml-1">R$ ${item.preco.toFixed(2)}</span></p>
-                </div>
-                <button onclick="removerItemCarrinho(${idx})" class="text-slate-500 hover:text-red-400 transition p-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>`;
-        }).join('');
-        document.getElementById('totalVenda').innerText = `R$ ${total.toFixed(2)}`;
-        document.getElementById('qtdItens').innerText = `${carrinho.reduce((a,b)=>a+b.qtd,0)} Itens no carrinho`;
-    };
-
-    window.removerItemCarrinho = (idx) => { carrinho.splice(idx,1); atualizarCarrinho(); focarBusca(); };
-
-    window.finalizarVenda = async () => {
-        if(carrinho.length === 0) return;
-        const batch = writeBatch(db);
-        let totalV = 0, lucroV = 0;
-        carrinho.forEach(item => {
-            totalV += item.preco * item.qtd;
-            lucroV += (item.preco - item.custo) * item.qtd;
-            batch.update(doc(db, "produtos", item.firebaseId), { estoque: item.estoque - item.qtd });
-        });
-        await addDoc(collection(db, "vendas"), {
-            data: new Date().toISOString(),
-            total: totalV, lucro: lucroV,
-            pagamento: document.getElementById('metodoPgto').value,
-            itens: carrinho.map(i => `${i.qtd}x ${i.nome}`).join(', ')
-        });
-        await batch.commit();
-        carrinho = []; atualizarCarrinho();
-        document.getElementById('valorRecebido').value = '';
-        notificar("Venda Concluída!"); focarBusca();
-    };
-
-    window.editarProduto = (id) => {
-        const p = produtos.find(x => x.firebaseId === id);
-        document.getElementById('editId').value = id;
-        document.getElementById('nome').value = p.nome;
-        document.getElementById('cod').value = p.cod;
-        document.getElementById('custo').value = p.custo;
-        document.getElementById('preco').value = p.preco;
-        document.getElementById('qtd').value = p.estoque;
-        document.getElementById('imgUrl').value = p.img;
-        document.getElementById('btnSalvar').innerText = "ATUALIZAR DADOS";
-        document.getElementById('btnCancelarEdit').classList.remove('hidden');
-        window.scrollTo(0,0);
-    };
-
-    window.cancelarEdicao = () => {
-        document.getElementById('formProd').reset();
-        document.getElementById('editId').value = "";
-        document.getElementById('btnSalvar').innerText = "SALVAR PRODUTO";
-        document.getElementById('btnCancelarEdit').classList.add('hidden');
-    };
-
-    window.removerProd = async (id) => { if(confirm("Apagar produto?")) await deleteDoc(doc(db, "produtos", id)); };
-
-    window.notificar = (msg) => {
-        const t = document.getElementById('toast');
-        document.getElementById('toastMsg').innerText = msg;
-        t.classList.replace('opacity-0', 'opacity-100');
-        t.classList.replace('scale-90', 'scale-100');
-        setTimeout(() => {
-            t.classList.replace('opacity-100', 'opacity-0');
-            t.classList.replace('scale-100', 'scale-90');
-        }, 3000);
-    };
-
-    function focarBusca() {
-        const b = document.getElementById('inputBusca');
-        if(b) { b.focus(); b.select(); }
-    }
-
-    document.getElementById('formProd').onsubmit = async (e) => {
-        e.preventDefault();
-        const id = document.getElementById('editId').value;
-        const p = {
-            nome: document.getElementById('nome').value,
-            cod: document.getElementById('cod').value || '0',
-            custo: parseFloat(document.getElementById('custo').value),
-            preco: parseFloat(document.getElementById('preco').value),
-            estoque: parseInt(document.getElementById('qtd').value),
-            img: document.getElementById('imgUrl').value || ''
+        const firebaseConfig = {
+            apiKey: "AIzaSyBuob65d4nwic1hXTGSsLtc38dEoD1H0zU",
+            authDomain: "pdv26-aa76b.firebaseapp.com",
+            projectId: "pdv26-aa76b",
+            storageBucket: "pdv26-aa76b.firebasestorage.app",
+            messagingSenderId: "885941177258",
+            appId: "1:885941177258:web:98f2690e07ec0a087cf9d3"
         };
-        id ? await updateDoc(doc(db, "produtos", id), p) : await addDoc(collection(db, "produtos"), p);
-        cancelarEdicao();
-        notificar("Sistema Atualizado!");
-    };
 
-    window.exportarExcel = () => {
-        const dataParaExportar = vendas.map(v => ({
-            Data: new Date(v.data).toLocaleString(),
-            Itens: v.itens,
-            Pagamento: v.pagamento,
-            Total: v.total,
-            Lucro: v.lucro
-        }));
-        const ws = XLSX.utils.json_to_sheet(dataParaExportar);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Vendas");
-        XLSX.writeFile(wb, "Louisiana_Relatorio.xlsx");
-    };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-    window.calcTroco = () => {
-        const total = parseFloat(document.getElementById('totalVenda').innerText.replace('R$ ', ''));
-        const rec = parseFloat(document.getElementById('valorRecebido').value) || 0;
-        document.getElementById('labelTroco').innerText = `R$ ${Math.max(0, rec - total).toFixed(2)}`;
-    };
+        // ==============================================================
+        // COLOQUE O SEU UID DO FIREBASE DENTRO DAS ASPAS ABAIXO
+        // Exemplo: const ID_DA_LOJA = "aB3dE5fG...";
+        // ==============================================================
+        const ID_DA_LOJA = "COLE_SEU_UID_AQUI"; 
 
-    window.toggleTroco = () => document.getElementById('divTroco').style.display = document.getElementById('metodoPgto').value === 'dinheiro' ? 'block' : 'none';
-    window.logout = () => signOut(auth).then(() => location.reload());
+        let podeEscanear = true;
 
-    window.addEventListener('keydown', (e) => {
-        if (e.key === 'F8') { e.preventDefault(); focarBusca(); }
-        if (e.key === 'F1') switchTab('venda');
-        if (e.key === 'F2') switchTab('estoque');
-        if (e.key === 'F3') switchTab('historico');
-        if (e.key === 'F9') finalizarVenda();
-    });
-</script>
+        async function onScanSuccess(decodedText) {
+            if (!podeEscanear) return;
+            
+            podeEscanear = false;
+            document.getElementById('status').innerText = "ENVIANDO PARA O CAIXA...";
+            document.getElementById('flash').style.opacity = "1";
+            
+            try {
+                // Envia direto para a pasta da sua loja
+                await addDoc(collection(db, `usuarios/${ID_DA_LOJA}/bipe_remoto`), {
+                    codigo: decodedText,
+                    timestamp: new Date().getTime()
+                });
+                
+                if (navigator.vibrate) navigator.vibrate(200);
+                
+                setTimeout(() => {
+                    document.getElementById('flash').style.opacity = "0";
+                    document.getElementById('status').innerText = "PRONTO PARA PRÓXIMO";
+                    podeEscanear = true;
+                }, 2000); 
+
+            } catch (e) {
+                alert("Erro ao enviar: O banco de dados bloqueou (verifique as regras do Firebase) ou a internet falhou.");
+                console.error(e);
+                podeEscanear = true;
+            }
+        }
+
+        const html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            { fps: 20, qrbox: { width: 250, height: 120 } },
+            onScanSuccess
+        ).then(() => {
+            document.getElementById('status').innerText = "SISTEMA PRONTO";
+        }).catch(err => {
+            document.getElementById('status').innerText = "Permita o uso da câmera!";
+            console.error(err);
+        });
+    </script>
 </body>
 </html>
