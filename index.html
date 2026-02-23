@@ -3,18 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Louisiana Scanner Ultra - Direto</title>
+    <title>Louisiana Scanner Ultra - Auto Connect</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         body { background: #1D1F26; color: white; font-family: sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        
-        /* Layout do Scanner */
         #appScanner { display: flex; flex-direction: column; align-items: center; width: 100%; }
         #reader { width: 85%; max-width: 400px; border-radius: 15px; overflow: hidden; border: 3px solid #22c55e !important; box-shadow: 0 0 20px rgba(34, 197, 94, 0.2); }
         #status { margin-top: 15px; font-weight: bold; color: #22c55e; text-align: center; }
-        
         .flash-bip { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; transition: opacity 0.1s; z-index: 999; }
-        h2 { letter-spacing: -1px; margin-bottom: 15px; text-transform: uppercase; }
+        h2 { letter-spacing: -1px; margin-bottom: 5px; color: #22c55e; }
+        p { font-size: 12px; color: #94a3b8; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -22,13 +20,16 @@
 
     <div id="appScanner">
         <h2>LOUISIANA SCAN ULTRA</h2>
+        <p id="auth-status">Conectando ao servidor...</p>
         <div id="reader"></div>
-        <div id="status">INICIANDO CÂMERA...</div>
+        <div id="status">AGUARDANDO CONEXÃO...</div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        // Importamos o Auth para autenticação anônima
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBuob65d4nwic1hXTGSsLtc38dEoD1H0zU",
@@ -41,22 +42,37 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
         
+        let currentUser = null;
         let html5QrCode = null;
         let podeEscanear = true;
 
+        // --- AUTENTICAÇÃO ANÔNIMA AUTOMÁTICA ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('auth-status').innerText = "CONECTADO ANONIMAMENTE";
+                iniciarCamera();
+            } else {
+                signInAnonymously(auth).catch(err => {
+                    document.getElementById('auth-status').innerText = "ERRO NA CONEXÃO";
+                    console.error("Erro auth:", err);
+                });
+            }
+        });
+
         // --- LÓGICA DO SCANNER ---
         async function onScanSuccess(decodedText) {
-            if (!podeEscanear) return;
+            if (!podeEscanear || !currentUser) return;
             
             podeEscanear = false;
-            document.getElementById('status').innerText = "ENVIANDO...";
+            document.getElementById('status').innerText = "ENVIANDO AO PDV...";
             document.getElementById('flash').style.opacity = "1";
             
             try {
-                // Enviando para uma coleção fixa 'bipe_remoto' 
-                // Você pode mudar 'geral' para o ID da sua loja se preferir
-                await addDoc(collection(db, `usuarios/geral/bipe_remoto`), {
+                // Mantemos o caminho original para que o PDV consiga ler
+                await addDoc(collection(db, `usuarios/${currentUser.uid}/bipe_remoto`), {
                     codigo: decodedText,
                     timestamp: new Date().getTime()
                 });
@@ -65,13 +81,12 @@
                 
                 setTimeout(() => {
                     document.getElementById('flash').style.opacity = "0";
-                    document.getElementById('status').innerText = "SISTEMA PRONTO";
+                    document.getElementById('status').innerText = "PRONTO PARA PRÓXIMO";
                     podeEscanear = true;
-                }, 1500); 
+                }, 1200); 
 
             } catch (e) {
-                console.error("Erro ao enviar:", e);
-                document.getElementById('status').innerText = "ERRO AO ENVIAR!";
+                alert("Erro ao enviar. Verifique as regras do Firebase: " + e);
                 podeEscanear = true;
             }
         }
@@ -85,15 +100,11 @@
                 { fps: 20, qrbox: { width: 250, height: 120 } },
                 onScanSuccess
             ).then(() => {
-                document.getElementById('status').innerText = "SISTEMA PRONTO";
+                document.getElementById('status').innerText = "ESCANEIE O PRODUTO";
             }).catch(err => {
-                document.getElementById('status').innerText = "ERRO: PERMITA A CÂMERA!";
-                console.error(err);
+                document.getElementById('status').innerText = "ERRO: PERMITA A CÂMERA";
             });
         }
-
-        // Inicia automaticamente ao carregar a página
-        window.addEventListener('load', iniciarCamera);
     </script>
 </body>
 </html>
