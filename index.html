@@ -3,33 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Louisiana Scanner Ultra - Auto Connect</title>
+    <title>Louisiana Scanner Ultra - Fix</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { background: #1D1F26; color: white; font-family: sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        #appScanner { display: flex; flex-direction: column; align-items: center; width: 100%; }
-        #reader { width: 85%; max-width: 400px; border-radius: 15px; overflow: hidden; border: 3px solid #22c55e !important; box-shadow: 0 0 20px rgba(34, 197, 94, 0.2); }
-        #status { margin-top: 15px; font-weight: bold; color: #22c55e; text-align: center; }
-        .flash-bip { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; transition: opacity 0.1s; z-index: 999; }
-        h2 { letter-spacing: -1px; margin-bottom: 5px; color: #22c55e; }
-        p { font-size: 12px; color: #94a3b8; margin-bottom: 15px; }
+        body { background: #0f172a; color: white; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        #reader { width: 90%; max-width: 400px; border-radius: 20px; overflow: hidden; border: 4px solid #10b981 !important; }
+        #status { margin-top: 20px; font-weight: 800; color: #10b981; text-transform: uppercase; letter-spacing: 1px; }
+        .config-box { background: rgba(255,255,255,0.05); p: 20px; border-radius: 20px; margin-bottom: 20px; text-align: center; width: 90%; }
+        input { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 12px; border-radius: 10px; color: white; width: 80%; margin-top: 10px; text-align: center; }
+        .flash { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 100; }
     </style>
 </head>
 <body>
-    <div class="flash-bip" id="flash"></div>
+    <div id="flash" class="flash"></div>
 
-    <div id="appScanner">
-        <h2>LOUISIANA SCAN ULTRA</h2>
-        <p id="auth-status">Conectando ao servidor...</p>
-        <div id="reader"></div>
-        <div id="status">AGUARDANDO CONEXÃO...</div>
+    <div class="config-box" id="setupBox">
+        <h2 style="color: #10b981; margin: 0;">VINCULAR PDV</h2>
+        <p style="font-size: 10px; color: #64748b;">Digite o ID (UID) que aparece nos Ajustes do PDV</p>
+        <input type="text" id="targetUid" placeholder="Cole o UID do seu PDV aqui">
+        <button onclick="salvarUid()" style="margin-top: 10px; background: #10b981; border: none; padding: 10px 20px; border-radius: 10px; color: white; font-weight: bold;">INICIAR SCANNER</button>
+    </div>
+
+    <div id="scannerBox" style="display: none; width: 100%; text-align: center;">
+        <h2 style="margin-bottom: 10px;">LOUISIANA <span style="color: #10b981;">SCAN</span></h2>
+        <div id="reader" style="margin: 0 auto;"></div>
+        <div id="status">INICIALIZANDO...</div>
+        <button onclick="localStorage.clear(); location.reload();" style="margin-top: 20px; font-size: 10px; color: #64748b; background: none; border: none;">Trocar UID de Destino</button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        // Importamos o Auth para autenticação anônima
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBuob65d4nwic1hXTGSsLtc38dEoD1H0zU",
@@ -43,66 +48,65 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        
-        let currentUser = null;
-        let html5QrCode = null;
+
+        let targetUid = localStorage.getItem('targetUid');
         let podeEscanear = true;
 
-        // --- AUTENTICAÇÃO ANÔNIMA AUTOMÁTICA ---
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                document.getElementById('auth-status').innerText = "CONECTADO ANONIMAMENTE";
-                iniciarCamera();
-            } else {
-                signInAnonymously(auth).catch(err => {
-                    document.getElementById('auth-status').innerText = "ERRO NA CONEXÃO";
-                    console.error("Erro auth:", err);
-                });
+        window.salvarUid = () => {
+            const val = document.getElementById('targetUid').value.trim();
+            if(val) {
+                localStorage.setItem('targetUid', val);
+                location.reload();
             }
-        });
+        };
 
-        // --- LÓGICA DO SCANNER ---
+        if (targetUid) {
+            document.getElementById('setupBox').style.display = 'none';
+            document.getElementById('scannerBox').style.display = 'block';
+            
+            signInAnonymously(auth).then(() => {
+                iniciarCamera();
+            }).catch(err => {
+                document.getElementById('status').innerText = "ERRO DE CONEXÃO";
+            });
+        }
+
         async function onScanSuccess(decodedText) {
-            if (!podeEscanear || !currentUser) return;
-            
+            if (!podeEscanear) return;
             podeEscanear = false;
-            document.getElementById('status').innerText = "ENVIANDO AO PDV...";
-            document.getElementById('flash').style.opacity = "1";
             
+            document.getElementById('status').innerText = "ENVIANDO...";
+            document.getElementById('flash').style.opacity = "1";
+
             try {
-                // Mantemos o caminho original para que o PDV consiga ler
-                await addDoc(collection(db, `usuarios/${currentUser.uid}/bipe_remoto`), {
+                // AGORA ENVIAMOS PARA O UID DO SEU USUÁRIO LOGADO NO PC
+                await addDoc(collection(db, `usuarios/${targetUid}/bipe_remoto`), {
                     codigo: decodedText,
                     timestamp: new Date().getTime()
                 });
-                
+
                 if (navigator.vibrate) navigator.vibrate(200);
                 
                 setTimeout(() => {
                     document.getElementById('flash').style.opacity = "0";
-                    document.getElementById('status').innerText = "PRONTO PARA PRÓXIMO";
+                    document.getElementById('status').innerText = "PRONTO!";
                     podeEscanear = true;
-                }, 1200); 
+                }, 800);
 
             } catch (e) {
-                alert("Erro ao enviar. Verifique as regras do Firebase: " + e);
+                alert("Erro de permissão! Verifique as regras do Firestore.");
                 podeEscanear = true;
             }
         }
 
         function iniciarCamera() {
-            if (!html5QrCode) {
-                html5QrCode = new Html5Qrcode("reader");
-            }
-            html5QrCode.start(
-                { facingMode: "environment" }, 
-                { fps: 20, qrbox: { width: 250, height: 120 } },
+            const scanner = new Html5Qrcode("reader");
+            scanner.start(
+                { facingMode: "environment" },
+                { fps: 25, qrbox: { width: 250, height: 150 } },
                 onScanSuccess
             ).then(() => {
-                document.getElementById('status').innerText = "ESCANEIE O PRODUTO";
-            }).catch(err => {
-                document.getElementById('status').innerText = "ERRO: PERMITA A CÂMERA";
+                document.getElementById('status').innerText = "AGUARDANDO PRODUTO...";
             });
         }
     </script>
