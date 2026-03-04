@@ -3,41 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Louisiana Scanner - Link por E-mail</title>
+    <title>Louisiana Scan - Direto</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
-        #reader { width: 90%; max-width: 400px; border-radius: 25px; overflow: hidden; border: 4px solid #10b981 !important; margin: 0 auto; }
-        .setup-screen { width: 85%; max-width: 350px; background: rgba(255,255,255,0.05); padding: 30px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); }
-        input { width: 100%; padding: 15px; border-radius: 15px; border: none; background: #1e293b; color: white; margin: 15px 0; text-align: center; font-size: 16px; outline: none; border: 2px solid transparent; transition: 0.3s; }
-        input:focus { border-color: #10b981; }
-        button { width: 100%; padding: 15px; border-radius: 15px; border: none; background: #10b981; color: white; font-weight: 800; cursor: pointer; transition: 0.2s; }
-        button:active { transform: scale(0.95); }
-        #status { margin-top: 20px; font-weight: bold; color: #10b981; text-transform: uppercase; }
-        .flash { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 100; transition: opacity 0.1s; }
+        body { background: #0f172a; color: white; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        #reader { width: 90%; max-width: 400px; border-radius: 20px; overflow: hidden; border: 4px solid #10b981 !important; }
+        .box { background: rgba(255,255,255,0.05); padding: 25px; border-radius: 25px; width: 85%; text-align: center; }
+        input { width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #1e293b; background: #0f172a; color: white; margin: 15px 0; text-align: center; }
+        button { width: 100%; padding: 15px; border-radius: 12px; background: #10b981; color: white; font-weight: bold; border: none; cursor: pointer; }
+        #status { margin-top: 15px; font-weight: bold; color: #10b981; }
+        .flash { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; transition: opacity 0.1s; }
     </style>
 </head>
 <body>
     <div id="flash" class="flash"></div>
 
-    <div id="setupScreen" class="setup-screen">
-        <h2 style="color: #10b981;">VINCULAR PDV</h2>
-        <p style="color: #64748b; font-size: 13px;">Digite o e-mail que você usa no seu PDV</p>
-        <input type="email" id="emailInput" placeholder="seu-email@exemplo.com">
-        <button onclick="buscarEConectar()">CONECTAR AGORA</button>
+    <div id="setup" class="box">
+        <h2 style="color:#10b981">CONECTAR</h2>
+        <input type="email" id="emailUser" placeholder="Seu e-mail do PDV">
+        <button onclick="conectar()">ENTRAR NO SCANNER</button>
     </div>
 
-    <div id="scannerScreen" style="display: none; width: 100%;">
-        <h2 style="margin-bottom: 5px;">LOUISIANA <span style="color: #10b981;">SCAN</span></h2>
-        <p id="vinculoInfo" style="font-size: 10px; color: #64748b; margin-bottom: 20px;"></p>
+    <div id="scanner" style="display:none; width: 100%; text-align: center;">
         <div id="reader"></div>
-        <div id="status">INICIALIZANDO...</div>
-        <button onclick="localStorage.clear(); location.reload();" style="margin-top: 30px; background: none; color: #ef4444; font-size: 11px;">Desconectar E-mail</button>
+        <p id="status">AGUARDANDO...</p>
+        <p id="info" style="font-size: 10px; color: #64748b;"></p>
+        <button onclick="localStorage.clear(); location.reload();" style="background:none; color:#64748b; font-size:11px;">Trocar E-mail</button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -53,80 +49,43 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        let targetUid = localStorage.getItem('targetUid');
-        let targetEmail = localStorage.getItem('targetEmail');
-        let podeEscanear = true;
+        let emailLogado = localStorage.getItem('emailScan');
 
-        // FUNÇÃO DE BUSCA POR E-MAIL
-        window.buscarEConectar = async () => {
-            const email = document.getElementById('emailInput').value.trim().toLowerCase();
-            if(!email) return alert("Digite um e-mail!");
-
-            try {
-                // Autentica anonimamente primeiro
-                await signInAnonymously(auth);
-                
-                // Busca o UID vinculado a esse e-mail
-                const docRef = doc(db, "vincular_email", email);
-                const docSnap = await getDoc(docRef);
-
-                if (docSnap.exists()) {
-                    const uidEncontrado = docSnap.data().uid;
-                    localStorage.setItem('targetUid', uidEncontrado);
-                    localStorage.setItem('targetEmail', email);
-                    location.reload();
-                } else {
-                    alert("E-mail não encontrado! Certifique-se de que o seu PDV está aberto e logado com esse e-mail.");
-                }
-            } catch (e) {
-                alert("Erro ao conectar: " + e.message);
+        window.conectar = () => {
+            const email = document.getElementById('emailUser').value.trim().toLowerCase();
+            if(email) {
+                localStorage.setItem('emailScan', email);
+                location.reload();
             }
         };
 
-        // INICIALIZAÇÃO
-        if (targetUid) {
-            document.getElementById('setupScreen').style.display = 'none';
-            document.getElementById('scannerScreen').style.display = 'block';
-            document.getElementById('vinculoInfo').innerText = "VINCULADO A: " + targetEmail;
-            
+        if(emailLogado) {
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('scanner').style.display = 'block';
+            document.getElementById('info').innerText = "Conectado a: " + emailLogado;
             signInAnonymously(auth).then(iniciarCamera);
         }
 
-        async function onScanSuccess(decodedText) {
-            if (!podeEscanear) return;
-            podeEscanear = false;
-            
-            document.getElementById('status').innerText = "ENVIANDO...";
+        async function onScanSuccess(text) {
             document.getElementById('flash').style.opacity = "1";
-
             try {
-                await addDoc(collection(db, `usuarios/${targetUid}/bipe_remoto`), {
-                    codigo: decodedText,
-                    timestamp: new Date().getTime()
+                // GRAVA DIRETO NA PASTA DO E-MAIL
+                await addDoc(collection(db, "bipes_vendas", emailLogado, "fila"), {
+                    codigo: text,
+                    timestamp: Date.now()
                 });
-
-                if (navigator.vibrate) navigator.vibrate(200);
-                
-                setTimeout(() => {
-                    document.getElementById('flash').style.opacity = "0";
-                    document.getElementById('status').innerText = "PRONTO PARA O PRÓXIMO";
-                    podeEscanear = true;
-                }, 800);
-            } catch (e) {
-                alert("Erro ao enviar! O seu PDV pode ter bloqueado o acesso.");
-                podeEscanear = true;
-            }
+                document.getElementById('status').innerText = "ENVIADO!";
+                if(navigator.vibrate) navigator.vibrate(100);
+            } catch (e) { console.error(e); }
+            setTimeout(() => { 
+                document.getElementById('flash').style.opacity = "0";
+                document.getElementById('status').innerText = "PRONTO";
+            }, 600);
         }
 
         function iniciarCamera() {
-            const scanner = new Html5Qrcode("reader");
-            scanner.start(
-                { facingMode: "environment" },
-                { fps: 20, qrbox: { width: 250, height: 150 } },
-                onScanSuccess
-            ).then(() => {
-                document.getElementById('status').innerText = "AGUARDANDO PRODUTO...";
-            });
+            const html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, onScanSuccess);
         }
     </script>
 </body>
